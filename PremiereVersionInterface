@@ -1,0 +1,280 @@
+import sys
+import cv2
+import mediapipe as mp
+import pygame.midi
+
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget,
+    QVBoxLayout, QHBoxLayout, QLabel,
+    QLineEdit, QPushButton, QComboBox, QSpinBox,
+    QGraphicsView, QGraphicsScene, QGraphicsRectItem,
+    QGraphicsPixmapItem, QInputDialog
+)
+
+from PyQt6.QtGui import QColor, QBrush, QPen, QImage, QPixmap
+from PyQt6.QtCore import Qt, QRectF, QTimer
+
+
+# =======================
+# INIT MIDI
+# =======================
+pygame.midi.init()
+player = pygame.midi.Output(0)
+sound_playing = {}
+
+NOTE_NAMES = ["Do","Do#","Ré","Ré#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"]
+NOTE_TO_OFFSET = {name: i for i,name in enumerate(NOTE_NAMES)}
+
+
+# =======================
+# INIT MEDIAPIPE
+# =======================
+mp_pose = mp.solutions.pose
+mp_drawing = mp.solutions.drawing_utils
+
+
+# =======================
+# RECTANGLE INTERACTIF
+# =======================
+class InteractiveRect(QGraphicsRectItem):
+
+    HANDLE_SIZE = 10
+
+    def __init__(self, x, y, w, h, color):
+        super().__init__(x, y, w, h)
+
+        self.midi_note = None
+        self.resizing = False
+
+        self.setBrush(QBrush(color))
+        self.setPen(QPen(Qt.GlobalColor.black, 2))
+
+        self.setFlags(
+            QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
+            QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable
+        )
+
+    # Redimensionnement coin bas droite
+    def mousePressEvent(self, event):
+        if event.pos().x() > self.rect().width() - self.HANDLE_SIZE and \
+           event.pos().y() > self.rect().height() - self.HANDLE_SIZE:
+            self.resizing = True
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self.resizing:
+            new_rect = QRectF(0, 0, event.pos().x(), event.pos().y())
+            self.setRect(new_rect)
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self.resizing = False
+        super().mouseReleaseEvent(event)
+
+    # Double clic → choisir note
+    def mouseDoubleClickEvent(self, event):
+
+        note, ok = QInputDialog.getItem(
+            None,
+            "Choisir une note",
+            "Note pour cette zone :",
+            NOTE_NAMES,
+            0,
+            False
+        )
+
+        if ok:
+            octave, ok2 = QInputDialog.getInt(
+                None,
+                "Choisir octave",
+                "Octave (1-7) :",
+                4, 1, 7
+            )
+
+            if ok2:
+                self.midi_note = 12*(octave+1) + NOTE_TO_OFFSET[note]
+                print(f"Note assignée : {note} - Octave {octave}")
+
+
+# =======================
+# FENÊTRE PRINCIPALE
+# =======================
+class MainWindow(QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("MPipophone - Version Finale")
+        self.setGeometry(100, 100, 900, 700)
+
+        self.zones = []
+
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.main_layout = QVBoxLayout()
+        self.central_widget.setLayout(self.main_layout)
+
+        self.create_config_bar()
+        self.create_visualisation_area()
+
+        # Webcam + MediaPipe
+        self.cap = cv2.VideoCapture(0)
+        self.pose = mp_pose.Pose()
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(30)
+
+
+    # =======================
+    # BARRE CONFIG HAUT
+    # =======================
+    def create_config_bar(self):
+
+        self.config_widget = QWidget()
+        layout = QHBoxLayout()
+        self.config_widget.setLayout(layout)
+
+        self.body_input = QLineEdit()
+        self.body_input.setPlaceholderText("Partie du corps")
+
+        self.zone_spin = QSpinBox()
+        self.zone_spin.setRange(1, 10)
+        self.zone_spin.valueChanged.connect(self.update_zones)
+
+        self.instrument_combo = QComboBox()
+        self.instrument_combo.addItems(["Piano", "Guitare", "Batterie"])
+
+        self.start_button = QPushButton("Démarrer")
+        self.start_button.clicked.connect(lambda: self.config_widget.hide())
+
+        layout.addWidget(QLabel("Partie du corps :"))
+        layout.addWidget(self.body_input)
+        layout.addWidget(QLabel("Nombre de zones :"))
+        layout.addWidget(self.zone_spin)
+        layout.addWidget(QLabel("Instrument :"))
+        layout.addWidget(self.instrument_combo)
+        layout.addWidget(self.start_button)
+
+        self.main_layout.addWidget(self.config_widget)
+
+
+    # =======================
+    # ZONE VIDEO + SCENE
+    # =======================
+    def create_visualisation_area(self):
+
+        self.view = QGraphicsView()
+        self.scene = QGraphicsScene()
+
+        self.view.setScene(self.scene)
+        self.view.setFixedSize(660, 500)
+        self.view.setSceneRect(0, 0, 640, 480)
+
+        self.video_item = QGraphicsPixmapItem()
+        self.scene.addItem(self.video_item)
+
+        self.main_layout.addWidget(self.view)
+
+        self.colors = [
+            QColor(255,100,100,120),
+            QColor(100,255,100,120),
+            QColor(100,100,255,120),
+            QColor(255,255,100,120)
+        ]
+
+
+    # =======================
+    # CREATION RECTANGLES
+    # =======================
+    def update_zones(self, value):
+
+        while len(self.zones) < value:
+            i = len(self.zones)
+            rect = InteractiveRect(
+                50 + i*120, 100, 100, 100,
+                self.colors[i % len(self.colors)]
+            )
+            self.scene.addItem(rect)
+            self.zones.append(rect)
+
+        while len(self.zones) > value:
+            rect = self.zones.pop()
+            self.scene.removeItem(rect)
+
+
+    # =======================
+    # UPDATE FRAME CAMERA
+    # =======================
+    def update_frame(self):
+
+        global sound_playing
+
+        ret, frame = self.cap.read()
+        if not ret:
+            return
+
+        frame = cv2.flip(frame, 1)
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(rgb)
+
+        h, w, _ = frame.shape
+
+        # Dessin squelette
+        if results.pose_landmarks:
+            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+
+            for sq in self.zones:
+
+                rect = sq.sceneBoundingRect()
+                active = False
+
+                for lm in results.pose_landmarks.landmark:
+                    cx, cy = int(lm.x*w), int(lm.y*h)
+
+                    if rect.left() <= cx <= rect.right() and \
+                       rect.top() <= cy <= rect.bottom():
+                        active = True
+                        break
+
+                if active and sq.midi_note and not sound_playing.get(sq.midi_note, False):
+                    player.note_on(sq.midi_note, 127)
+                    sound_playing[sq.midi_note] = True
+
+                elif not active and sq.midi_note and sound_playing.get(sq.midi_note, False):
+                    player.note_off(sq.midi_note, 127)
+                    sound_playing[sq.midi_note] = False
+
+        # Affichage vidéo
+        image = QImage(frame.data, w, h, 3*w, QImage.Format.Format_RGB888)
+        pixmap = QPixmap.fromImage(image)
+        self.video_item.setPixmap(pixmap)
+
+
+    # =======================
+    # FERMETURE PROPRE
+    # =======================
+    def closeEvent(self, event):
+
+        self.timer.stop()
+        self.cap.release()
+        cv2.destroyAllWindows()
+
+        for note, playing in sound_playing.items():
+            if playing:
+                player.note_off(note, 127)
+
+        player.close()
+        pygame.midi.quit()
+
+        event.accept()
+
+
+# =======================
+# LANCEMENT APP
+# =======================
+app = QApplication(sys.argv)
+window = MainWindow()
+window.show()
+sys.exit(app.exec())
