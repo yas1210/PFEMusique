@@ -21,6 +21,22 @@ mp_drawing = mp.solutions.drawing_utils
 NOTE_NAMES = ["Do","Do#","Ré","Ré#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"]
 NOTE_TO_OFFSET = {name: i for i,name in enumerate(NOTE_NAMES)}
 
+# Couleurs par défaut selon la note
+DEFAULT_NOTE_COLORS = {
+    0: QColor(255,0,0),
+    1: QColor(255,128,0),
+    2: QColor(255,255,0),
+    3: QColor(128,255,0),
+    4: QColor(0,255,0),
+    5: QColor(0,255,128),
+    6: QColor(0,255,255),
+    7: QColor(0,128,255),
+    8: QColor(0,0,255),
+    9: QColor(128,0,255),
+    10: QColor(255,0,255),
+    11: QColor(255,0,128)
+}
+
 #Défini le bouton de config pour pouvoir mettre verticalement mais ne marche pas encore
 class FlippedButton(QPushButton):
     def __init__(self, text, parent=None):
@@ -29,7 +45,7 @@ class FlippedButton(QPushButton):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.translate(self.width()/2, self.height()/2)
-        painter.rotate(-90)  # rotate text vertical
+        painter.rotate(-90)
         painter.translate(-self.width()/2, -self.height()/2)
         super().paintEvent(event)
 
@@ -79,8 +95,7 @@ class CameraWindow(QWidget):
         # config du label de pannel de video
         self.video_label = QLabel()
         self.video_label.setMinimumSize(640, 480)
-        self.video_label.setSizePolicy(self.video_label.sizePolicy().horizontalPolicy(),
-                               self.video_label.sizePolicy().verticalPolicy())
+        self.video_label.setScaledContents(True)
         layout.addWidget(self.video_label, stretch=1)
 
         # Pannel de config
@@ -94,7 +109,7 @@ class CameraWindow(QWidget):
         self.color_btn = QPushButton("Choisir couleur")
         self.color_btn.clicked.connect(self.choose_color)
         self.config_layout.addRow("Couleur :", self.color_btn)
-        self.current_color = QColor(255,0,0)
+        self.current_color = None
 
         # config de l'affichage du choix de note et octave
         self.note_combo = QComboBox()
@@ -153,7 +168,13 @@ class CameraWindow(QWidget):
         note_name = self.note_combo.currentText()
         octave = self.octave_spin.value()
         midi_note = 12*(octave+1) + NOTE_TO_OFFSET[note_name]
-        sq = InteractiveSquare(100,100,200,200,self.current_color,midi_note)
+
+        if self.current_color is None:
+            color = DEFAULT_NOTE_COLORS[NOTE_TO_OFFSET[note_name]]
+        else:
+            color = self.current_color
+
+        sq = InteractiveSquare(100,100,200,200,color,midi_note)
         self.squares.append(sq)
 
     def toggle_config_panel(self):
@@ -170,10 +191,22 @@ class CameraWindow(QWidget):
         self.config_minimized = False
 
      
-    def mouse_press(self, event: QMouseEvent):
+    def _scale_mouse_pos(self, event):
+        label_w = self.video_label.width()
+        label_h = self.video_label.height()
+        scale_x = 640 / label_w
+        scale_y = 480 / label_h
         pos = event.position().toPoint()
+        return QPoint(int(pos.x() * scale_x), int(pos.y() * scale_y))
+
+    def mouse_press(self, event: QMouseEvent):
+        if self.config_minimized:
+            return
+
+        pos = self._scale_mouse_pos(event)
+
         for sq in reversed(self.squares):
-            if not self.config_minimized and sq.delete_at(pos):
+            if sq.delete_at(pos):
                 self.squares.remove(sq)
                 return
             handle = sq.handle_at(pos)
@@ -189,10 +222,12 @@ class CameraWindow(QWidget):
                 return
 
     def mouse_move(self, event: QMouseEvent):
-        if not self.active_square:
+        if not self.active_square or self.config_minimized:
             return
-        pos = event.position().toPoint()
+
+        pos = self._scale_mouse_pos(event)
         sq = self.active_square
+
         if sq.dragging:
             sq.rect.moveTopLeft(pos - sq.offset)
         elif sq.resizing:
@@ -232,22 +267,20 @@ class CameraWindow(QWidget):
                 corners = [sq.rect.topLeft(), sq.rect.topRight(), sq.rect.bottomLeft(), sq.rect.bottomRight()]
                 for corner in corners:
                     cv2.circle(frame,(corner.x(),corner.y()),InteractiveSquare.POINT_RADIUS,(0,255,0),-1)
-                # delete X
                 top_right = sq.rect.topRight()
                 cv2.rectangle(frame,(top_right.x()-InteractiveSquare.DELETE_SIZE,top_right.y()),
                               (top_right.x(), top_right.y()+InteractiveSquare.DELETE_SIZE),(0,0,255),-1)
                 cv2.putText(frame,"X",(top_right.x()-InteractiveSquare.DELETE_SIZE+2,top_right.y()+InteractiveSquare.DELETE_SIZE-2),
                             cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
 
-            # verif de "landmarks" de MIDI
             active = False
             if results.pose_landmarks:
                 for lm in results.pose_landmarks.landmark:
                     cx, cy = int(lm.x*w), int(lm.y*h)
-                    cv2.circle(frame,(cx,cy),5,(255,0,0),-1)
                     if sq.rect.contains(cx,cy):
                         active=True
                         break
+
             if active and not sound_playing.get(sq.note, False):
                 player.note_on(sq.note,127)
                 sound_playing[sq.note]=True
@@ -256,15 +289,8 @@ class CameraWindow(QWidget):
                 sound_playing[sq.note]=False
 
         image = QImage(frame.data,w,h,3*w,QImage.Format.Format_RGB888)
-        pixmap = QPixmap.fromImage(image)
-        self.video_label.setPixmap(
-            pixmap.scaled(
-                self.video_label.size(),
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation
-            )
-        )
-
+        self.video_label.setPixmap(QPixmap.fromImage(image))
+        
     def closeEvent(self,event):
         self.timer.stop()
         self.cap.release()
