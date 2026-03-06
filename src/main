@@ -1,11 +1,12 @@
 import sys
 import cv2
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, QPoint
 from core.audio import MidiManager
 from core.engine import PoseEngine
 from core.models import InteractiveSquare
 from ui.main_window import MainWindow
+
 
 class AppController:
     def __init__(self):
@@ -14,48 +15,51 @@ class AppController:
         self.engine = PoseEngine()
         self.window = MainWindow(self.midi, self.engine)
         self.cap = cv2.VideoCapture(0)
+
         self.timer = QTimer()
         self.timer.timeout.connect(self.run_loop)
         self.timer.start(30)
 
     def run_loop(self):
         ret, frame = self.cap.read()
-        if not ret: return
+        if not ret:
+            return
+
         frame = cv2.flip(frame, 1)
         frame = cv2.resize(frame, (640, 480))
         h, w, _ = frame.shape
 
+        # Mode sélectionné dans l'UI
+        current_text = self.window.mode_combo.currentText()
+        mode_key = self.window.mode_map.get(current_text, "MAINS")
+
+        # Mediapipe
         results = self.engine.process_frame(frame)
-        points = self.engine.get_landmarks_pixels(results, w, h)
-        
-        if results.pose_landmarks:
-            self.engine.mp_drawing.draw_landmarks(frame, results.pose_landmarks, self.engine.mp_pose.POSE_CONNECTIONS)
+        points = self.engine.get_landmarks_pixels(results, w, h, mode=mode_key)
+
+        # Etat jeu / édition
+        is_playing = not self.window.config_panel.isVisible()
 
         active_notes = set()
+
         for sq in self.window.squares:
-            # --- DESSIN IDENTIQUE À TON CODE INITIAL ---
-            x, y, width, height = sq.rect.x(), sq.rect.y(), sq.rect.width(), sq.rect.height()
-            cv2.rectangle(frame, (x, y), (x + width, y + height), (sq.color.blue(), sq.color.green(), sq.color.red()), 2)
 
-            if not self.window.config_minimized:
-                # Points de redimensionnement
-                corners = [sq.rect.topLeft(), sq.rect.topRight(), sq.rect.bottomLeft(), sq.rect.bottomRight()]
-                for corner in corners:
-                    cv2.circle(frame, (corner.x(), corner.y()), InteractiveSquare.POINT_RADIUS, (0, 255, 0), -1)
-                
-                # Bouton de suppression (Croix Rouge)
-                top_right = sq.rect.topRight()
-                cv2.rectangle(frame, (top_right.x() - InteractiveSquare.DELETE_SIZE, top_right.y()),
-                              (top_right.x(), top_right.y() + InteractiveSquare.DELETE_SIZE), (0, 0, 255), -1)
-                cv2.putText(frame, "X", (top_right.x() - InteractiveSquare.DELETE_SIZE + 2, top_right.y() + InteractiveSquare.DELETE_SIZE - 2),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            # Collision
+            sq.is_active = any(
+                sq.rect.contains(QPoint(p[0], p[1])) for p in points
+            )
 
-            # --- DÉTECTION COLLISION ---
-            is_hit = any(sq.rect.contains(p[0], p[1]) for p in points)
-            if is_hit: active_notes.add(sq.note)
+            if sq.is_active:
+                active_notes.add(sq.midi_note)
 
+            # Dessin du carré (gère aussi coins + bouton delete)
+            sq.draw(frame, show_controls=not is_playing)
+
+        # MIDI
         self.midi.update_notes(active_notes)
-        self.window.update_video_display(frame)
+
+        # Affichage final
+        self.window.update_video_display(frame, points, show_points=True)
 
     def exec(self):
         self.window.show()
@@ -63,6 +67,7 @@ class AppController:
         self.cap.release()
         self.midi.close()
         sys.exit(res)
+
 
 if __name__ == "__main__":
     controller = AppController()
