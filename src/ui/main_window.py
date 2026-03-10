@@ -9,14 +9,8 @@ from core.models import (InteractiveSquare, NOTE_NAMES,
 from .widgets import FlippedButton 
 import os
 import json
-# -----------------------------------------
-
-# Supposons que ces imports sont dans votre structure de projet
-# from core.models import InteractiveSquare, NOTE_NAMES, NOTE_TO_OFFSET, DEFAULT_NOTE_COLORS
-# from .widgets import FlippedButton
 
 class MainWindow(QWidget):
-
 
     def __init__(self, midi_manager, pose_engine):
         super().__init__()
@@ -105,6 +99,7 @@ class MainWindow(QWidget):
         # Liste des configurations sauvegardées
         self.config_list = QListWidget()
         self.config_layout.addRow("Partitions Enregistrées", self.config_list)
+        self.config_list.itemClicked.connect(self.load_config_from_item)
 
         # Bouton latéral (Dock)
         self.dock_btn = FlippedButton("CONFIGURATION") # Doit être importé
@@ -119,27 +114,6 @@ class MainWindow(QWidget):
         self.video_label.mouseMoveEvent = self.mouse_move
         self.video_label.mouseReleaseEvent = self.mouse_release
 
-    # Méthode permettant d'enregistrer les partitions dans la liste config_list
-    def save_configuration(self):
-        name, ok = QInputDialog.getText(self, "Nom configuration", "Nom :")
-        if not ok or not name:
-            return
-
-        config_data = []
-
-        for sq in self.squares:
-            data = {
-                "x": sq.rect.x(),
-                "y": sq.rect.y(),
-                "w": sq.rect.width(),
-                "h": sq.rect.height(),
-                "note": sq.midi_note,
-                "color": (sq.color.red(), sq.color.green(), sq.color.blue())
-            }
-            config_data.append(data)
-        self.saved_configs[name] = config_data
-        self.add_config_to_list(name)
-        self.save_configs_to_disk()
 
     def update_video_display(self, frame, points=None, show_points=True):
         h, w, _ = frame.shape
@@ -152,7 +126,7 @@ class MainWindow(QWidget):
         img = QImage(frame.data, w, h, w*3, QImage.Format.Format_RGB888).rgbSwapped()
         self.video_label.setPixmap(QPixmap.fromImage(img))
 
-    # --- Méthodes utilitaires (inchangées mais nécessaires) ---
+    # --- Méthodes utilitaires  ---
     def choose_color(self):
         color = QColorDialog.getColor()
         if color.isValid(): self.current_color = color
@@ -216,6 +190,30 @@ class MainWindow(QWidget):
             self.active_square.dragging = self.active_square.resizing = False
             self.active_square = None
 
+    
+# ENREGISTRER LES CONFIGURATIONS
+    # Méthode permettant d'enregistrer les partitions dans la liste config_list
+    def save_configuration(self):
+        name, ok = QInputDialog.getText(self, "Nom configuration", "Nom :")
+        if not ok or not name:
+            return
+
+        config_data = []
+
+        for sq in self.squares:
+            data = {
+                "x": sq.rect.x(),
+                "y": sq.rect.y(),
+                "w": sq.rect.width(),
+                "h": sq.rect.height(),
+                "note": sq.midi_note,
+                "color": (sq.color.red(), sq.color.green(), sq.color.blue())
+            }
+            config_data.append(data)
+        self.saved_configs[name] = config_data
+        self.add_config_to_list(name)
+        self.save_configs_to_disk()
+
     # Sauvegarder partitions graphiquement
     def load_configuration_by_name(self, name):
 
@@ -241,8 +239,9 @@ class MainWindow(QWidget):
         self.update()
 
     def add_config_to_list(self, name):
-
         item = QListWidgetItem()
+        item.setData(Qt.ItemDataRole.UserRole, name)  # stocke le nom de la config
+
         widget = QWidget()
 
         layout = QHBoxLayout()
@@ -264,10 +263,7 @@ class MainWindow(QWidget):
         self.config_list.addItem(item)
         self.config_list.setItemWidget(item, widget)
 
-        # chargement au clic sur le nom
-        label.mousePressEvent = lambda event, n=name: self.load_configuration_by_name(n)
-
-        # suppression
+        # suppression d'une config enregistrée
         delete_btn.clicked.connect(lambda: self.delete_configuration(name, item))
 
     # Sauvegarder les partitions localement
@@ -294,3 +290,7 @@ class MainWindow(QWidget):
         self.config_list.takeItem(row)
 
         self.save_configs_to_disk()
+
+    def load_config_from_item(self, item):
+        name = item.data(Qt.ItemDataRole.UserRole)
+        self.load_configuration_by_name(name)
