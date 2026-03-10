@@ -1,12 +1,12 @@
 import cv2
 from PyQt6.QtWidgets import (QListWidget, QWidget, QHBoxLayout, QLabel, QPushButton, 
-                             QColorDialog, QSpinBox, QComboBox, QFormLayout, QInputDialog, QListWidgetItem)
+                             QColorDialog, QSpinBox, QComboBox, QFormLayout, QInputDialog, QListWidgetItem, QFileDialog)
 from PyQt6.QtGui import QImage, QPixmap, QColor, QMouseEvent
 from PyQt6.QtCore import Qt, QPoint 
 
 from core.models import (InteractiveSquare, NOTE_NAMES, 
                          NOTE_TO_OFFSET, DEFAULT_NOTE_COLORS)
-from .widgets import FlippedButton 
+from .widgets import *
 import os
 import json
 
@@ -33,9 +33,9 @@ class MainWindow(QWidget):
 
         # Mapping entre le texte UI et les clés du PoseEngine
         self.mode_map = {
-            "Mains (Poignets/Doigts)": "MAINS",
+            "Mains (Poignets+main)": "MAINS",
             "Membres Supérieurs": "MEMBRES_SUP",
-            "Visage (Yeux/Nez/Bouche)": "VISAGE",
+            "Visage (Yeux+Nez+Bouche)": "VISAGE",
             "Tout le corps (Sans filtre)": "SANS_FILTRE"
         }
 
@@ -46,13 +46,13 @@ class MainWindow(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # --- Zone Vidéo ---
+        #  Zone Vidéo
         self.video_label = QLabel()
         self.video_label.setMinimumSize(640, 480)
         self.video_label.setScaledContents(True)
         layout.addWidget(self.video_label, stretch=1)
 
-        # --- Panneau de Configuration ---
+        # Panneau de Configuration 
         self.config_panel = QWidget()
         self.config_panel.setFixedWidth(300)
         self.config_layout = QFormLayout(self.config_panel)
@@ -69,27 +69,57 @@ class MainWindow(QWidget):
         line.setStyleSheet("background-color: #444;")
         self.config_layout.addRow(line)
 
-        # Paramètres des notes
+        # Paramètres des zones interactives
+        # choix de la couleur
         self.color_btn = QPushButton("Choisir couleur")
         self.color_btn.clicked.connect(self.choose_color)
         self.config_layout.addRow("Couleur :", self.color_btn)
 
+        #Choix de la note
         self.note_combo = QComboBox()
         self.note_combo.addItems(NOTE_NAMES) # NOTE_NAMES doit être importé
         self.config_layout.addRow("Note :", self.note_combo)
 
+        #Choix de l'octave
         self.octave_spin = QSpinBox()
         self.octave_spin.setRange(1,7)
         self.octave_spin.setValue(4)
         self.config_layout.addRow("Octave :", self.octave_spin)
 
-        self.add_btn = QPushButton("Ajouter carré")
+        # choix de l'instrument
+        self.instrument_combo = QComboBox()
+        self.instruments = {
+            "Piano": (0,0),
+            "Guitare": (24,1),
+            "Violons": (40,2),
+            "Violoncelle": (42,3),
+            "Flute": (73,4),
+            "Trompette": (56,5)
+        }
+        self.instrument_combo.addItems(self.instruments.keys())
+        self.config_layout.addRow("Instrument :", self.instrument_combo)
+
+        #bouton ajouter une forme
+        self.add_btn = QPushButton("Ajouter une forme interactive")
         self.add_btn.clicked.connect(self.add_square)
         self.config_layout.addRow(self.add_btn)
 
-        self.start_btn = QPushButton("Démarrer / Minimiser")
-        self.start_btn.clicked.connect(self.toggle_config)
-        self.config_layout.addRow(self.start_btn)
+        # Séparateur visuel
+        line = QWidget()
+        line.setFixedHeight(2)
+        line.setStyleSheet("background-color: #444;")
+        self.config_layout.addRow(line)
+
+        #Ajout son personalisé
+        self.custom_sound_btn = QPushButton("Ajouter un son personnalisé")
+        self.custom_sound_btn.clicked.connect(self.load_custom_sound)
+        self.config_layout.addRow(self.custom_sound_btn)
+
+        # Séparateur visuel
+        line = QWidget()
+        line.setFixedHeight(2)
+        line.setStyleSheet("background-color: #444;")
+        self.config_layout.addRow(line)
 
         # Bouton sauvegarde configuration
         self.save_config_btn = QPushButton("Sauvegarder configuration")
@@ -100,6 +130,11 @@ class MainWindow(QWidget):
         self.config_list = QListWidget()
         self.config_layout.addRow("Partitions Enregistrées", self.config_list)
         self.config_list.itemClicked.connect(self.load_config_from_item)
+
+        # Démarrer la séance musicale (sortie du mode config)
+        self.start_btn = StartButton()
+        self.start_btn.clicked.connect(self.toggle_config)
+        self.config_layout.addRow(self.start_btn)
 
         # Bouton latéral (Dock)
         self.dock_btn = FlippedButton("CONFIGURATION") # Doit être importé
@@ -132,11 +167,28 @@ class MainWindow(QWidget):
         if color.isValid(): self.current_color = color
 
     def add_square(self):
+
         note_name = self.note_combo.currentText()
         octave = self.octave_spin.value()
-        midi_note = 12*(octave+1) + NOTE_TO_OFFSET[note_name]
         color = self.current_color or DEFAULT_NOTE_COLORS[NOTE_TO_OFFSET[note_name]]
-        self.squares.append(InteractiveSquare(100,100,200,200,color,midi_note))
+        midi_note = 12*(octave+1) + NOTE_TO_OFFSET[note_name]
+
+        instrument = self.instrument_combo.currentText()
+        program, channel = self.instruments[instrument]
+        sq = InteractiveSquare(
+            100,
+            100,
+            200,
+            200,
+            color,
+            midi_note,
+            instrument,
+            program,
+            getattr(self,"custom_sound",None)
+        )
+
+        sq.channel = channel
+        self.squares.append(sq)
 
     def toggle_config(self):
         # On inverse l'état
@@ -207,23 +259,26 @@ class MainWindow(QWidget):
                 "w": sq.rect.width(),
                 "h": sq.rect.height(),
                 "note": sq.midi_note,
-                "color": (sq.color.red(), sq.color.green(), sq.color.blue())
+                "color": (sq.color.red(), sq.color.green(), sq.color.blue()),
+                "instrument": sq.instrument,
+                "program": sq.program,
+                "custom_sound": sq.custom_sound
             }
             config_data.append(data)
+
         self.saved_configs[name] = config_data
         self.add_config_to_list(name)
         self.save_configs_to_disk()
 
-    # Sauvegarder partitions graphiquement
-    def load_configuration_by_name(self, name):
 
+    # --- Charger une configuration
+    def load_configuration_by_name(self, name):
         if name not in self.saved_configs:
             return
 
         self.squares.clear()
 
         for data in self.saved_configs[name]:
-
             color = QColor(*data["color"])
 
             sq = InteractiveSquare(
@@ -232,10 +287,14 @@ class MainWindow(QWidget):
                 data["x"] + data["w"],
                 data["y"] + data["h"],
                 color,
-                data["note"]
+                data["note"],
+                instrument=data.get("instrument", "Piano"),
+                program=data.get("program", 0),
+                custom_sound=data.get("custom_sound", None)
             )
 
             self.squares.append(sq)
+
         self.update()
 
     def add_config_to_list(self, name):
@@ -294,3 +353,39 @@ class MainWindow(QWidget):
     def load_config_from_item(self, item):
         name = item.data(Qt.ItemDataRole.UserRole)
         self.load_configuration_by_name(name)
+
+# AJOUTER UN SON CUSTOM
+    def load_custom_sound(self):
+        # Sélection du fichier audio
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choisir un son personnalisé",
+            "",
+            "Audio (*.wav *.mp3)"
+        )
+
+        if path:
+            # Demander le nom du label 
+            default_name = os.path.basename(path).split('.')[0] # Nom du fichier sans extension
+            label_name, ok = QInputDialog.getText(
+                self, 
+                "Nom du son", 
+                "Comment voulez-vous nommer ce bouton ?",
+                text=default_name
+            )
+
+            if ok and label_name:
+                # Création automatique du carré interactif
+                # On utilise une couleur par défaut (ex: Violet) ou la couleur actuelle
+                color = self.current_color or QColor(155, 89, 182) 
+                
+                new_sq = InteractiveSquare(
+                    150, 150, 250, 250,  # Position par défaut
+                    color=color,
+                    note=0,               # Pas de note MIDI spécifique car c'est un son custom
+                    instrument=label_name, # Le label affiché sur le carré
+                    custom_sound=path      # Le chemin vers le fichier
+                )
+                
+                # On l'ajoute directement à la liste
+                self.squares.append(new_sq)

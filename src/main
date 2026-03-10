@@ -16,6 +16,7 @@ class AppController:
         self.window = MainWindow(self.midi, self.engine)
         self.cap = cv2.VideoCapture(0)
 
+        # Timer pour la boucle principale
         self.timer = QTimer()
         self.timer.timeout.connect(self.run_loop)
         self.timer.start(30)
@@ -40,23 +41,25 @@ class AppController:
         # Etat jeu / édition
         is_playing = not self.window.config_panel.isVisible()
 
-        active_notes = set()
+        # Préparer les carrés actifs
+        active_squares = []
 
+        # Vérifier collision + dessiner les carrés
         for sq in self.window.squares:
 
-            # Collision
+            # Collision : vérifier si un point touche le carré
             sq.is_active = any(
                 sq.rect.contains(QPoint(p[0], p[1])) for p in points
             )
 
             if sq.is_active:
-                active_notes.add(sq.midi_note)
+                active_squares.append(sq)
 
-            # Dessin du carré (gère aussi coins + bouton delete)
+            # Dessin du carré (gère coins + bouton delete)
             sq.draw(frame, show_controls=not is_playing)
 
-        # MIDI
-        self.midi.update_notes(active_notes)
+        # MIDI : passer la liste complète des carrés pour gérer l'arrêt des sons
+        self.midi.update_notes(active_squares, all_squares=self.window.squares)
 
         # Affichage final
         self.window.update_video_display(frame, points, show_points=True)
