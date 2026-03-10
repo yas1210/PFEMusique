@@ -55,7 +55,7 @@ a) Enregistrer une configuration associée à un élève
 7) Quand l'élève vient poser la partie du corps dans la forme configurée, le PC émet le son correspondant à la forme et à la couleur en question. 
 8) La/le musicothérapeute peut appuyer sur le bouton Configuration : la fenêtre de configuration apparaît de nouveau. Maintenant, on peut réaliser des modifications en déplaçant les formes, en les ajoutant ou en les supprimant.
 
-// A COMPLETER
+// A COMPLETER AVEC FONCTIONNALITES OPTIONNELLES 
 
 # STRUCTURE DU PROJET 
 
