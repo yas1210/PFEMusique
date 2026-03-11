@@ -1,0 +1,24 @@
+{
+    "salibaan": {
+        "type": "musicotherapist",
+        "password": "dc504183fde77bac60fef520b528dd178b9457cab9f12fc47b3030f3bb9e4faf",
+        "full_name": "Anthony SALIBA",
+        "students": {
+            "test_1_test": {
+                "first_name": "Test 1",
+                "last_name": "TEST",
+                "date_of_birth": "2026-03-01",
+                "musicotherapist_id": "salibaan",
+                "created_at": "2026-03-11T16:06:21.384027"
+            },
+            "coco_test": {
+                "first_name": "Coco",
+                "last_name": "TEST",
+                "date_of_birth": "2026-03-03",
+                "musicotherapist_id": "salibaan",
+                "created_at": "2026-03-11T16:23:44.807544"
+            }
+        },
+        "created_at": "2026-03-11T15:52:38.360143"
+    }
+}

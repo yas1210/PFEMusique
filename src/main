@@ -1,11 +1,14 @@
 import sys
 import cv2
+import os
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer, QPoint
 from core.audio import MidiManager
 from core.engine import PoseEngine
 from core.models import InteractiveSquare
+from core.user_manager import UserManager
 from ui.main_window import MainWindow
+from ui.login_dialog import LoginDialog
 
 
 class AppController:
@@ -13,7 +16,14 @@ class AppController:
         self.app = QApplication(sys.argv)
         self.midi = MidiManager()
         self.engine = PoseEngine()
-        self.window = MainWindow(self.midi, self.engine)
+        
+        # Initialize user manager
+        data_dir = os.path.join(os.path.dirname(__file__), "data")
+        self.user_manager = UserManager(data_dir)
+        
+        # Create main window with user_manager
+        self.window = MainWindow(self.midi, self.engine, self.user_manager)
+        
         self.cap = cv2.VideoCapture(0)
 
         # Timer pour la boucle principale
@@ -64,7 +74,32 @@ class AppController:
         # Affichage final
         self.window.update_video_display(frame, points, show_points=True)
 
+    def show_login_dialog(self):
+        """Afficher le dialogue de connexion avant la fenêtre principale."""
+        dialog = LoginDialog(self.user_manager, self.window)
+        if dialog.exec():
+            # Connexion réussie - sélectionner automatiquement le profil musicothérapeute
+            success, message = self.user_manager.switch_to_musicotherapist_profile()
+            print(f"✓ Profil musicothérapeute sélectionné: {self.user_manager.get_current_profile_name()}")
+            
+            # Rafraîchir l'affichage du profil et charger les configurations
+            self.window.update_profile_label()
+            self.window.charger_configs_du_disque()
+            
+            return True
+        else:
+            # Utilisateur a fermé la fenêtre de dialogue sans se connecter
+            return False
+
     def exec(self):
+        # Show login dialog first
+        if not self.show_login_dialog():
+            # User didn't login, exit application
+            self.cap.release()
+            self.midi.close()
+            sys.exit(0)
+        
+        # Show main window after successful login
         self.window.show()
         res = self.app.exec()
         self.cap.release()

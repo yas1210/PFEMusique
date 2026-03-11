@@ -7,18 +7,20 @@ from PyQt6.QtCore import Qt, QPoint
 from core.models import (InteractiveSquare, NOTE_NAMES, 
                          NOTE_TO_OFFSET, DEFAULT_NOTE_COLORS)
 from .widgets import *
+from .student_management import StudentManagementDialog
 import os
 import json
 
 class MainWindow(QWidget):
 
-    def __init__(self, midi_manager, pose_engine):
+    def __init__(self, midi_manager, pose_engine, user_manager=None):
         super().__init__()
-        self.setWindowTitle("MPipophone Pro")
+        self.setWindowTitle("MUSIC-MOVE")
         self.resize(1100, 600)
         
         self.midi = midi_manager
         self.engine = pose_engine
+        self.user_manager = user_manager
         self.squares = []
         self.active_square = None
         self.config_minimized = False
@@ -40,7 +42,8 @@ class MainWindow(QWidget):
         }
 
         self.init_ui()
-        self.load_configs_from_disk()
+        self.load_configs_from_disk = self.charger_configs_du_disque  # Alias pour compatibilité
+        self.charger_configs_du_disque()
 
     def init_ui(self):
         layout = QHBoxLayout(self)
@@ -57,6 +60,23 @@ class MainWindow(QWidget):
         self.config_panel.setFixedWidth(300)
         self.config_layout = QFormLayout(self.config_panel)
         layout.addWidget(self.config_panel)
+
+        # Profile Selection Button (at the top of config panel)
+        if self.user_manager:
+            self.profile_btn = QPushButton("📋 Gérer Profils")
+            self.profile_btn.clicked.connect(self.open_profile_dialog)
+            self.config_layout.addRow(self.profile_btn)
+            
+            self.profile_label = QLabel()
+            self.profile_label.setStyleSheet("color: #2E7D32; font-weight: bold;")
+            self.update_profile_label()
+            self.config_layout.addRow("Profil :", self.profile_label)
+            
+            # Séparateur visuel
+            line = QWidget()
+            line.setFixedHeight(2)
+            line.setStyleSheet("background-color: #444;")
+            self.config_layout.addRow(line)
 
         # AJOUT : Sélecteur de Mode
         self.mode_combo = QComboBox()
@@ -266,9 +286,29 @@ class MainWindow(QWidget):
             }
             config_data.append(data)
 
-        self.saved_configs[name] = config_data
-        self.add_config_to_list(name)
+        # Link config to current profile
+        if self.user_manager:
+            config_entry = {
+                "name": name,
+                "data": config_data,
+                "musicotherapist_id": self.user_manager.current_user,
+                "student_id": self.user_manager.current_student_id,
+                "profile_type": self.user_manager.current_profile_type
+            }
+            self.saved_configs[name] = config_entry
+            print(f"\n💾 Enregistrement de config '{name}':")
+            print(f"   MT: {self.user_manager.current_user}")
+            print(f"   Étudiant: {self.user_manager.current_student_id}")
+            print(f"   Type profil: {self.user_manager.current_profile_type}\n")
+        else:
+            # Fallback for when user_manager is not available
+            self.saved_configs[name] = {"name": name, "data": config_data}
+        
+        # Sauvegarder TOUTES les configs sur disque
         self.save_configs_to_disk()
+        
+        # Rafraîchir la liste UI pour afficher la nouvelle config
+        self.charger_configs_du_disque()
 
 
     # --- Charger une configuration
@@ -277,8 +317,16 @@ class MainWindow(QWidget):
             return
 
         self.squares.clear()
+        
+        # Extract config data from new structure
+        config_entry = self.saved_configs[name]
+        if isinstance(config_entry, dict) and "data" in config_entry:
+            config_data = config_entry["data"]
+        else:
+            # Fallback for old format
+            config_data = config_entry
 
-        for data in self.saved_configs[name]:
+        for data in config_data:
             color = QColor(*data["color"])
 
             sq = InteractiveSquare(
@@ -297,7 +345,8 @@ class MainWindow(QWidget):
 
         self.update()
 
-    def add_config_to_list(self, name):
+    def ajouter_config_a_liste(self, name):
+        """Ajouter une configuration à la liste UI."""
         item = QListWidgetItem()
         item.setData(Qt.ItemDataRole.UserRole, name)  # stocke le nom de la config
 
@@ -324,31 +373,126 @@ class MainWindow(QWidget):
 
         # suppression d'une config enregistrée
         delete_btn.clicked.connect(lambda: self.delete_configuration(name, item))
+    
+    # Alias pour compatibilité
+    def add_config_to_list(self, name):
+        self.ajouter_config_a_liste(name)
 
     # Sauvegarder les partitions localement
+    def sauvegarder_configs_sur_disque(self):
+        """Sauvegarder les configurations sur le disque."""
+        try:
+            # Vérifier que le répertoire existe
+            os.makedirs(self.data_dir, exist_ok=True)
+            
+            with open(self.config_file, "w", encoding="utf-8") as f:
+                json.dump(self.saved_configs, f, indent=4, ensure_ascii=False)
+        except IOError as e:
+            print(f"Erreur lors de la sauvegarde des configs: {e}")
+    
+    # Alias pour compatibilité
     def save_configs_to_disk(self):
-        with open(self.config_file, "w") as f:
-            json.dump(self.saved_configs, f, indent=4)
+        self.sauvegarder_configs_sur_disque()
 
-    def load_configs_from_disk(self):
+    def charger_configs_du_disque(self):
+        """Charger les configurations depuis le disque.
+        
+        IMPORTANT: On garde TOUTES les configs en mémoire pour éviter de les perdre
+        lors de sauvegardes. On filtre seulement l'AFFICHAGE dans la liste UI.
+        """
         if not os.path.exists(self.config_file):
+            print(f"Fichier config n'existe pas: {self.config_file}")
             return
 
-        with open(self.config_file, "r") as f:
-            self.saved_configs = json.load(f)
+        # Charger toutes les configs depuis le disque
+        try:
+            with open(self.config_file, "r", encoding="utf-8") as f:
+                self.saved_configs = json.load(f)
+                print(f"✓ Configs chargées du disque: {list(self.saved_configs.keys())}")
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"✗ Erreur lors du chargement des configs: {e}")
+            self.saved_configs = {}
+            return
 
-        for name in self.saved_configs:
-            self.add_config_to_list(name)
+        # Effacer UNIQUEMENT la liste UI, pas les configs en mémoire !
+        self.config_list.clear()
+        
+        if not self.user_manager:
+            # Si pas de gestionnaire d'utilisateur, afficher toutes les configs
+            for name in self.saved_configs:
+                self.ajouter_config_a_liste(name)
+            print(f"Aucun user_manager: {len(self.saved_configs)} configs affichées")
+            return
+        
+        current_user = self.user_manager.current_user
+        current_profile_type = self.user_manager.current_profile_type
+        current_student_id = self.user_manager.current_student_id
+        
+        print(f"\n📋 Affichage des configs:")
+        print(f"   Utilisateur: {current_user}")
+        print(f"   Type profil: {current_profile_type}")
+        print(f"   ID élève: {current_student_id}")
+        print(f"   Configs EN MÉMOIRE: {list(self.saved_configs.keys())}\n")
+        
+        # Compter les configs affichées
+        configs_affichees = 0
+        
+        if current_profile_type == "musicotherapist":
+            # Agréger toutes les configs pour les élèves de ce musicothérapeute
+            print(f"Mode MUSICOTHÉRAPEUTE: affichage configs pour MT '{current_user}'")
+            for config_name, config_entry in self.saved_configs.items():
+                # Gérer les formats ancien et nouveau
+                if isinstance(config_entry, dict) and "musicotherapist_id" in config_entry:
+                    mt_id = config_entry.get("musicotherapist_id")
+                    if mt_id == current_user:
+                        self.ajouter_config_a_liste(config_name)
+                        configs_affichees += 1
+                        print(f"   ✓ '{config_name}' affichée (MT match)")
+                    else:
+                        print(f"   ✗ '{config_name}' ignorée (MT '{mt_id}' ≠ '{current_user}')")
+                else:
+                    # Format ancien - afficher seulement s'il n'y a pas de suivi d'utilisateur
+                    self.ajouter_config_a_liste(config_name)
+                    configs_affichees += 1
+                    print(f"   ✓ '{config_name}' affichée (ancien format)")
+        
+        elif current_profile_type == "student":
+            # Afficher seulement les configs liées à cet élève spécifique
+            print(f"Mode ÉLÈVE: affichage configs pour élève '{current_student_id}' de MT '{current_user}'")
+            for config_name, config_entry in self.saved_configs.items():
+                # Gérer les formats ancien et nouveau
+                if isinstance(config_entry, dict) and "student_id" in config_entry:
+                    student_id = config_entry.get("student_id")
+                    mt_id = config_entry.get("musicotherapist_id")
+                    if (student_id == current_student_id and 
+                        mt_id == current_user):
+                        self.ajouter_config_a_liste(config_name)
+                        configs_affichees += 1
+                        print(f"   ✓ '{config_name}' affichée (match parfait)")
+                    else:
+                        print(f"   ✗ '{config_name}' ignorée (Student: '{student_id}' ≠ '{current_student_id}' OU MT: '{mt_id}' ≠ '{current_user}')")
+                else:
+                    # Format ancien - afficher seulement s'il n'y a pas de suivi
+                    if "musicotherapist_id" not in config_entry:
+                        self.ajouter_config_a_liste(config_name)
+                        configs_affichees += 1
+                        print(f"   ✓ '{config_name}' affichée (ancien format)")
+        
+        print(f"\n✓ {configs_affichees}/{len(self.saved_configs)} config(s) affichées en UI\n")
 
     # supprimer une partition
     def delete_configuration(self, name, item):
+        print(f"\n🗑️  Suppression de '{name}'")
         if name in self.saved_configs:
             del self.saved_configs[name]
+            print(f"   ✓ Supprimée de la mémoire")
 
         row = self.config_list.row(item)
         self.config_list.takeItem(row)
-
+        
+        # Sauvegarder TOUTES les configs restantes sur disque
         self.save_configs_to_disk()
+        print(f"   ✓ Fichier sauvegardé\n")
 
     def load_config_from_item(self, item):
         name = item.data(Qt.ItemDataRole.UserRole)
@@ -389,3 +533,41 @@ class MainWindow(QWidget):
                 
                 # On l'ajoute directement à la liste
                 self.squares.append(new_sq)
+
+    # --- Profile Management ---
+    def open_profile_dialog(self):
+        """Open the student management dialog."""
+        if not self.user_manager:
+            return
+        
+        dialog = StudentManagementDialog(self.user_manager, self)
+        dialog.profile_changed.connect(self.on_profile_changed)
+        dialog.exec()
+
+    def on_profile_changed(self, profile_type, profile_id):
+        """Handle profile change and reload configurations for the new profile."""
+        # Clear current drawings but not configs yet
+        self.squares.clear()
+        
+        # Reload configurations for the new profile (filters by profile)
+        # This will properly filter/aggregate based on the new profile
+        self.load_configs_from_disk()
+        self.update_profile_label()
+        self.update()
+
+    def update_profile_label(self):
+        """Update the profile label in the UI."""
+        if not self.user_manager or not hasattr(self, 'profile_label'):
+            return
+        
+        profile_name = self.user_manager.get_current_profile_name()
+        profile_type = self.user_manager.current_profile_type
+        
+        if profile_type == "musicotherapist":
+            label = f"Prof: {profile_name}"
+        elif profile_type == "student":
+            label = f"Elève : {profile_name}"
+        else:
+            label = "Selectionnez un profil"
+        
+        self.profile_label.setText(label)

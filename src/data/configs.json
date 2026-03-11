@@ -1,236 +1,86 @@
 {
-    "Do": [
-        {
-            "x": 100,
-            "y": 100,
-            "w": 100,
-            "h": 100,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ]
-        }
-    ],
-    "S\u00e9ance example": [
-        {
-            "x": 84,
-            "y": 70,
-            "w": 100,
-            "h": 100,
-            "note": 72,
-            "color": [
-                255,
-                0,
-                0
-            ]
-        },
-        {
-            "x": 474,
-            "y": 87,
-            "w": 83,
-            "h": 111,
-            "note": 74,
-            "color": [
-                255,
-                255,
-                0
-            ]
-        },
-        {
-            "x": 308,
-            "y": 42,
-            "w": 81,
-            "h": 79,
-            "note": 65,
-            "color": [
-                0,
-                255,
-                128
-            ]
-        }
-    ],
-    "Do Mi": [
-        {
-            "x": 100,
-            "y": 100,
-            "w": 100,
-            "h": 100,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ]
-        },
-        {
-            "x": 418,
-            "y": 66,
-            "w": 100,
-            "h": 100,
-            "note": 64,
-            "color": [
-                0,
-                255,
-                0
-            ]
-        }
-    ],
-    "PIAONO TROMP": [
-        {
-            "x": 100,
-            "y": 100,
-            "w": 100,
-            "h": 100,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ],
-            "instrument": "Piano",
-            "program": 0,
-            "custom_sound": null
-        },
-        {
-            "x": 418,
-            "y": 66,
-            "w": 100,
-            "h": 100,
-            "note": 64,
-            "color": [
-                0,
-                255,
-                0
-            ],
-            "instrument": "Piano",
-            "program": 0,
-            "custom_sound": null
-        },
-        {
-            "x": 481,
-            "y": 242,
-            "w": 100,
-            "h": 100,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ],
-            "instrument": "Trompette",
-            "program": 56,
-            "custom_sound": null
-        }
-    ],
-    "6 instruments": [
-        {
-            "x": 106,
-            "y": 106,
-            "w": 56,
-            "h": 50,
-            "note": 64,
-            "color": [
-                0,
-                255,
-                0
-            ],
-            "instrument": "Piano",
-            "program": 0,
-            "custom_sound": null
-        },
-        {
-            "x": 539,
-            "y": 184,
-            "w": 60,
-            "h": 49,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ],
-            "instrument": "Trompette",
-            "program": 56,
-            "custom_sound": null
-        },
-        {
-            "x": 330,
-            "y": 60,
-            "w": 84,
-            "h": 80,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ],
-            "instrument": "Guitare",
-            "program": 24,
-            "custom_sound": null
-        },
-        {
-            "x": 455,
-            "y": 94,
-            "w": 75,
-            "h": 53,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ],
-            "instrument": "Violons",
-            "program": 40,
-            "custom_sound": null
-        },
-        {
-            "x": 46,
-            "y": 186,
-            "w": 64,
-            "h": 51,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ],
-            "instrument": "Violoncelle",
-            "program": 42,
-            "custom_sound": null
-        },
-        {
-            "x": 195,
-            "y": 45,
-            "w": 100,
-            "h": 100,
-            "note": 60,
-            "color": [
-                255,
-                0,
-                0
-            ],
-            "instrument": "Fl\u00fbte",
-            "program": 73,
-            "custom_sound": null
-        }
-    ],
-    "Son perso exemple": [
-        {
-            "x": 399,
-            "y": 98,
-            "w": 184,
-            "h": 126,
-            "note": 0,
-            "color": [
-                155,
-                89,
-                182
-            ],
-            "instrument": "Son perso",
-            "program": 0,
-            "custom_sound": "C:/Users/antho/Music/Yoo, holy shit he dead! (Meme Sound) - Sound Effect for editing.wav"
-        }
-    ]
+    "Ré": {
+        "name": "Ré",
+        "data": [
+            {
+                "x": 100,
+                "y": 100,
+                "w": 100,
+                "h": 100,
+                "note": 62,
+                "color": [
+                    255,
+                    255,
+                    0
+                ],
+                "instrument": "Piano",
+                "program": 0,
+                "custom_sound": null
+            }
+        ],
+        "musicotherapist_id": "salibaan",
+        "student_id": "test_1_test",
+        "profile_type": "student"
+    },
+    "Do general": {
+        "name": "Do general",
+        "data": [
+            {
+                "x": 100,
+                "y": 100,
+                "w": 100,
+                "h": 100,
+                "note": 60,
+                "color": [
+                    255,
+                    0,
+                    0
+                ],
+                "instrument": "Piano",
+                "program": 0,
+                "custom_sound": null
+            }
+        ],
+        "musicotherapist_id": "salibaan",
+        "student_id": null,
+        "profile_type": "musicotherapist"
+    },
+    "Do mi": {
+        "name": "Do mi",
+        "data": [
+            {
+                "x": 100,
+                "y": 100,
+                "w": 100,
+                "h": 100,
+                "note": 60,
+                "color": [
+                    255,
+                    0,
+                    0
+                ],
+                "instrument": "Piano",
+                "program": 0,
+                "custom_sound": null
+            },
+            {
+                "x": 461,
+                "y": 114,
+                "w": 100,
+                "h": 100,
+                "note": 64,
+                "color": [
+                    0,
+                    255,
+                    0
+                ],
+                "instrument": "Piano",
+                "program": 0,
+                "custom_sound": null
+            }
+        ],
+        "musicotherapist_id": "salibaan",
+        "student_id": "coco_test",
+        "profile_type": "student"
+    }
 }
