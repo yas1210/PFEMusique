@@ -12,10 +12,7 @@ class MidiManager:
         pygame.mixer.init()
 
     def update_notes(self, active_squares, all_squares):
-        active_notes = set()
         for sq in active_squares:
-            note = sq.midi_note
-            active_notes.add(note)
             if not self.sound_playing.get(id(sq), False):
                 # Son personnalisé
                 if sq.custom_sound:
@@ -28,15 +25,12 @@ class MidiManager:
                     self.player.note_on(note,127,sq.channel)
                 self.sound_playing[id(sq)] = True
 
-        # Stop notes / sons
         for sq in all_squares:
             if sq.is_active: continue
             if self.sound_playing.get(id(sq), False):
                 # stop son personnalisé
                 if sq.custom_sound and sq.sound:
                     sq.sound.stop()
-                else:
-                    self.player.note_off(sq.midi_note,127,sq.channel)
                 self.sound_playing[id(sq)] = False
 
     def close(self):
