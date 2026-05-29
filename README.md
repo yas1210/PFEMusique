@@ -212,4 +212,28 @@ MediaPipe : Détection de posture
 
 AUTEURS
 
+<<<<<<< HEAD
+## Génération du fichier exécutable Windows
+
+Pour créer un build Windows utilisable sans installer Python, exécutez ce script depuis la racine du projet :
+
+- `build_exe.bat` (cmd)
+- `build_exe.ps1` (PowerShell)
+
+Le script installe `PyInstaller` dans le venv si besoin, puis génère l’exécutable dans :
+- `dist\MPipophone.exe`
+
+Si vous préférez préparer manuellement :
+1. Activez le venv :
+   `venv\Scripts\activate`
+2. Installez PyInstaller :
+   `venv\Scripts\python.exe -m pip install --upgrade pyinstaller`
+3. Lancez la construction :
+   `venv\Scripts\python.exe -m PyInstaller --clean --noconfirm --windowed --onefile --name MPipophone --add-data "src\data;data" "src\main"`
+
+> Le dossier `src\data` doit être inclus dans le bundle, car l’application lit `users.json` et `configs.json` au démarrage.
+
+```
+=======
 Projet réalisé par Anthony SALIBA, Yasmine ELJRAIDI, Constance GUTIERREZ, Hamado NIKIEMA, élèves TIS5, dans le cadre de notre projet de Fin d'étude. 
+>>>>>>> b41448c2737ad1b8c73d086646f905b470e4d404

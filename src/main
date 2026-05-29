@@ -18,8 +18,15 @@ class AppController:
         self.engine = PoseEngine()
         
         # Initialize user manager
-        data_dir = os.path.join(os.path.dirname(__file__), "data")
-        self.user_manager = UserManager(data_dir)
+        if getattr(sys, "frozen", False):
+            # When running as .exe, save user data to %APPDATA%\MPipophone\
+            app_data_dir = os.path.join(os.getenv('APPDATA'), 'MPipophone')
+        else:
+            # When running in IDE/dev, use local src/data directory
+            app_data_dir = os.path.join(os.path.dirname(__file__), "data")
+
+        os.makedirs(app_data_dir, exist_ok=True)
+        self.user_manager = UserManager(app_data_dir)
         
         # Create main window with user_manager
         self.window = MainWindow(self.midi, self.engine, self.user_manager)
