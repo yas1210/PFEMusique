@@ -2,6 +2,7 @@ import cv2
 from PyQt6.QtCore import QRect, QPoint
 from PyQt6.QtGui import QColor
 import numpy as np
+import os
 
 NOTE_NAMES = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"]
 NOTE_TO_OFFSET = {name: i for i, name in enumerate(NOTE_NAMES)}
@@ -63,8 +64,31 @@ class InteractiveSquare:
             label = f"{self.instrument} : {note_name}{octave}"
 
         # Affichage sur l'image
-        cv2.putText(frame, label, (x+5, y-5),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
+        # Use PIL if available to support Unicode (accents) in labels.
+        try:
+            from PIL import ImageFont, ImageDraw, Image
+
+            # Convert BGR->RGB and to PIL image
+            pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            draw = ImageDraw.Draw(pil)
+
+            # Try to load a common TTF font; fall back to default
+            try:
+                font_path = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'arial.ttf')
+                font = ImageFont.truetype(font_path, 14)
+            except Exception:
+                font = ImageFont.load_default()
+
+            # PIL coordinates: (x, y) where y is top; we offset to draw above the rectangle
+            text_pos = (x + 5, max(0, y - 20))
+            draw.text(text_pos, label, font=font, fill=(255, 255, 255))
+
+            # Convert back to BGR numpy array
+            frame[:] = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+        except Exception:
+            # Fallback to OpenCV if PIL is not available or drawing fails
+            cv2.putText(frame, label, (x+5, y-5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
 
         # Remplissage si actif
         if self.is_active:
