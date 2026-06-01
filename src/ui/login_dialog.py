@@ -34,7 +34,7 @@ class LoginDialog(QDialog):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        subtitle = QLabel("Application de Musicothérapie")
+        subtitle = QLabel("Application de Musique Inclusive")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle_font = QFont()
         subtitle_font.setPointSize(10)
@@ -67,11 +67,6 @@ class LoginDialog(QDialog):
         form_layout.addRow(password_label, self.password_input)
 
         layout.addLayout(form_layout)
-
-        # Case à cocher pour rester connecté
-        self.stay_logged_in = QCheckBox("Rester connecté sur cet ordinateur")
-        self.stay_logged_in.setStyleSheet("margin: 5px 0px;")
-        layout.addWidget(self.stay_logged_in)
 
         # Étiquette message d'erreur
         self.error_label = QLabel()
