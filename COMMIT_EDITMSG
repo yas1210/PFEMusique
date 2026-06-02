@@ -1,0 +1,25 @@
+delete sound files
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch intergation_mac
+# Changes to be committed:
+#	deleted:    src/assets/sounds/do-octave.wav
+#	deleted:    src/assets/sounds/do-stretched-octave.wav
+#	deleted:    src/assets/sounds/do-stretched.wav
+#	deleted:    src/assets/sounds/do.wav
+#	deleted:    src/assets/sounds/fa-stretched.wav
+#	deleted:    src/assets/sounds/fa.wav
+#	deleted:    src/assets/sounds/la-stretched.wav
+#	deleted:    src/assets/sounds/la.wav
+#	deleted:    src/assets/sounds/mi-stretched.wav
+#	deleted:    src/assets/sounds/mi.wav
+#	deleted:    src/assets/sounds/piano.wav
+#	deleted:    src/assets/sounds/re-stretched.wav
+#	deleted:    src/assets/sounds/re.wav
+#	deleted:    src/assets/sounds/sanza.wav
+#	deleted:    src/assets/sounds/si-stretched.wav
+#	deleted:    src/assets/sounds/si.wav
+#	deleted:    src/assets/sounds/sol-stretched.wav
+#	deleted:    src/assets/sounds/sol.wav
+#
