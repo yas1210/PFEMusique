@@ -169,7 +169,7 @@ class StudentManagementDialog(QDialog):
         reply = QMessageBox.question(
             self,
             "Delete Student",
-            f"Are you sure you want to delete '{display_text}'?",
+            f"Êtes-vous sûr de vouloir supprimer ?'{display_text}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
