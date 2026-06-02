@@ -17,10 +17,10 @@ import pygame
 import pygame.mixer
 import os
 os.environ["DYLD_LIBRARY_PATH"] = "/opt/homebrew/lib"
-# ── Détection de la plateforme ────────────────────────────────────────────────
+# Détection de la plateforme
 _SYSTEM = platform.system()  # "Windows", "Darwin" (macOS), "Linux"
 
-# ── Chemin vers la soundfont (pour FluidSynth sur macOS/Linux) ───────────────
+# Chemin vers la soundfont (pour FluidSynth sur macOS/Linux)
 _SF2_PATHS = [
     os.path.join(os.path.dirname(__file__), "..", "data", "GeneralUser.sf2"),
     os.path.join(os.path.dirname(__file__), "..", "data", "soundfont.sf2"),
@@ -38,7 +38,7 @@ def _find_sf2():
     return None
 
 
-# ── Backend pygame.midi (Windows / Linux avec synthé MIDI système) ────────────
+# Backend pygame.midi (Windows / Linux avec synthé MIDI système) 
 class _MidiBackend:
     """Utilise pygame.midi — fonctionne nativement sur Windows."""
 
@@ -63,7 +63,7 @@ class _MidiBackend:
         pygame.midi.quit()
 
 
-# ── Backend FluidSynth (macOS, et Linux sans synthé MIDI système) ─────────────
+#  Backend FluidSynth (macOS, et Linux sans synthé MIDI système)
 class _FluidSynthBackend:
     """
     Utilise pyfluidsynth pour synthétiser les sons MIDI en interne,
@@ -98,7 +98,7 @@ class _FluidSynthBackend:
         self.fs.delete()
 
 
-# ── Sélection automatique du backend ─────────────────────────────────────────
+# Sélection automatique du backend
 def _create_backend():
     """
     Choisit le meilleur backend disponible selon la plateforme.
