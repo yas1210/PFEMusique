@@ -27,8 +27,12 @@ class MainWindow(QWidget):
         self.current_color = None
         self.saved_configs = {}
 
-        # Dossier data
-        self.data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
+        # Dossier data - utiliser le dossier fourni par user_manager si possible
+        # (Quand l'app est empaquetée en .exe on veut %APPDATA% via UserManager)
+        if self.user_manager and getattr(self.user_manager, "data_dir", None):
+            self.data_dir = self.user_manager.data_dir
+        else:
+            self.data_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data"))
         os.makedirs(self.data_dir, exist_ok=True)
         self.config_file = os.path.join(self.data_dir, "configs.json")
         # Créer le fichier configs.json s'il n'existe pas
