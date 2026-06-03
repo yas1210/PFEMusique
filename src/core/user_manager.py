@@ -17,6 +17,10 @@ class UserManager:
         os.makedirs(data_dir, exist_ok=True)
         
         self.users_file = os.path.join(data_dir, "users.json")
+        # Créer le fichier users.json s'il n'existe pas
+        if not os.path.exists(self.users_file):
+            with open(self.users_file, "w", encoding="utf-8") as f:
+             json.dump({}, f)
         self.users = {}
         self.current_user = None
         self.current_profile_type = None  # "musicotherapist" or "student"

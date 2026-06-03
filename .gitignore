@@ -48,3 +48,4 @@ Thumbs.db
 
 # Application data (optional - if you want to exclude user configs)
 # src/data/users.json
+src/data/*.json

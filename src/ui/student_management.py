@@ -46,7 +46,7 @@ class StudentManagementDialog(QDialog):
         self.update_current_profile_label()
 
         # Bouton pour passer au profil général
-        self.switch_general_btn = QPushButton("Utiliser le Profil Musicothérapeute")
+        self.switch_general_btn = QPushButton("Utiliser le Profil professeur de musique")
         self.switch_general_btn.clicked.connect(self.switch_to_general)
         layout.addWidget(self.switch_general_btn)
 

@@ -129,11 +129,6 @@ class LoginDialog(QDialog):
         if success:
             self.error_label.setText("")
             
-            # TODO: Stocker la préférence "rester connecté" si nécessaire
-            if self.stay_logged_in.isChecked():
-                # Pourrait implémenter la connexion persistante ici
-                pass
-            
             self.login_successful.emit()
             self.accept()
         else:

@@ -31,6 +31,10 @@ class MainWindow(QWidget):
         self.data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
         os.makedirs(self.data_dir, exist_ok=True)
         self.config_file = os.path.join(self.data_dir, "configs.json")
+        # Créer le fichier configs.json s'il n'existe pas
+        if not os.path.exists(self.config_file):
+            with open(self.config_file, "w", encoding="utf-8") as f:
+                json.dump({}, f)
         self.saved_configs = {}
 
         # Mapping entre le texte UI et les clés du PoseEngine
